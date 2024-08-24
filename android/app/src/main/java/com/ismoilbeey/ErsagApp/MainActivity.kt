@@ -1,4 +1,4 @@
-package com.ersagapp
+package com.ismoilbeey.ErsagApp
 
 import android.os.Build
 import android.os.Bundle

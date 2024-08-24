@@ -3,10 +3,15 @@
     "name": "ErsagApp",
     "slug": "ErsagApp",
     "version": "1.0.0",
+    "schema": "ErsagApp",
+    "platforms": ["android", "ios", "web"],
     "extra": {
       "eas": {
         "projectId": "8b234c11-ceb9-4ba5-bf56-0b03c2afdc3a"
       }
+    },
+    "android": {
+      "package": "com.ismoilbeey.ErsagApp"
     }
   }
 }

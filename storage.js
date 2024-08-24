@@ -15,6 +15,7 @@ export const saveOrders = async (orders) => {
 export const getOrders = async () => {
     try {
         const orders = await AsyncStorage.getItem(ORDER_STORAGE_KEY);
+        console.log(orders, "orders")
         return orders ? JSON.parse(orders) : [];
     } catch (error) {
         console.error('Error retrieving orders:', error);

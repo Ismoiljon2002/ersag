@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, Button, Alert } from 'react-native';
-import TopBar from '../components/TopBar'; // Import TopBar
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert } from 'react-native';
+import { Icon, Button } from 'react-native-elements';
+import TopBar from '../components/TopBar';
 import OrderModal from '../components/OrdersModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getOrders, saveOrders, clearOrders } from '../storage'; // Import storage functions
-import { Icon } from 'react-native-elements';
+import { getOrders, saveOrders } from '../storage';
+import { formatNumber } from '../helpers/formatNumber';
 
-const OrdersScreen = () => {
+const OrdersScreen = ({ navigation }) => {
     const [modalVisible, setModalVisible] = useState(false);
     const [orders, setOrders] = useState([]);
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -21,7 +22,7 @@ const OrdersScreen = () => {
     }, []);
 
     const handleAddOrder = () => {
-        setSelectedOrder(null); // Ensure we're not editing when adding a new order
+        setSelectedOrder(null);
         setModalVisible(true);
     };
 
@@ -30,19 +31,19 @@ const OrdersScreen = () => {
         setModalVisible(true);
     };
 
-    const handleDeleteOrder = (index) => {
+    const handleDeleteOrder = (id) => {
         Alert.alert(
             'Delete Order',
             'Are you sure you want to delete this order?',
             [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'OK', onPress: () => deleteOrder(index) }
+                { text: 'OK', onPress: () => deleteOrder(id) }
             ]
         );
     };
 
-    const deleteOrder = async (index) => {
-        const updatedOrders = orders.filter((_, i) => i !== index);
+    const deleteOrder = async (id) => {
+        const updatedOrders = orders.filter((order) => order.id !== id);
         setOrders(updatedOrders);
         await saveOrders(updatedOrders);
     };
@@ -51,75 +52,155 @@ const OrdersScreen = () => {
         setModalVisible(false);
         if (newOrder) {
             const updatedOrders = selectedOrder
-                ? orders.map(order => (order === selectedOrder ? newOrder : order))
+                ? orders.map(order => (order.id === selectedOrder.id ? newOrder : order))
                 : [...orders, newOrder];
             setOrders(updatedOrders);
             await saveOrders(updatedOrders);
         }
     };
 
+    // Sort orders by date descending to ensure newest is at the top
+    const sortedOrders = [...orders].sort((a, b) => new Date(b.orderDate) - new Date(a.orderDate));
+
+    const formatOrderDate = (date) => {
+        if (!date) return 'Unknown Date';
+        const parsedDate = new Date(date);
+        return parsedDate.toISOString().split('T')[0];
+    };
+
     return (
         <SafeAreaView style={styles.container}>
-            <TopBar title="Buyurtmalarim" onAddPress={handleAddOrder} />
-            <ScrollView contentContainerStyle={styles.scrollContainer}>
-                <FlatList
-                    data={orders}
-                    renderItem={({ item, index }) => (
-                        <View style={styles.orderItem}>
-                            <TouchableOpacity onPress={() => handleEditOrder(item)}>
-                                <Text style={styles.orderTitle}> {index + 1}-buyurtma {item.item}</Text>
-                                <Text style={styles.orderDate}>
-                                    Buyurtma sanasi: {item.items[0].orderDate.split('T')[0]}
-                                </Text>
-                                <FlatList
-                                    data={item.items}
-                                    renderItem={({ item, index }) => (
-                                        <View style={styles.itemContainer}>
-                                            <Text style={styles.text}> {index + 1}. {item.item} - {item.price} so'm</Text>
-                                            {item.customer && <Text style={styles.text}>Xaridorning ismi: {item.customer}</Text>}
+            <TopBar
+                title="Buyurtmalarim"
+                onAddPress={handleAddOrder}
+                onFilterPress={() => navigation.navigate('MonthSelection')}
+            />
+            <FlatList
+                data={sortedOrders}
+                renderItem={({ item, index }) => (
+                    <View style={styles.orderItem}>
+                        <TouchableOpacity onPress={() => handleEditOrder(item)}>
+                            <View style={styles.orderHeader}>
+                                <Icon name="file-text" type="feather" color="#000" />
+                                <Text style={styles.orderTitle}>{formatNumber(sortedOrders.length - index)}-buyurtma</Text>
+                            </View>
+                            <Text style={styles.orderDate}>
+                                Buyurtma sanasi: {formatOrderDate(item.orderDate)}
+                            </Text>
+                            <FlatList
+                                data={item.items}
+                                renderItem={({ item, index }) => (
+                                    <View style={styles.itemContainer}>
+                                        <View style={styles.itemContent}>
+                                            <Text style={styles.text}>
+                                                {item.isGift && <Icon name="gift" type="feather" color="green" size={16} style={{marginRight: 5}} />}
+                                                {item.item}
+                                            </Text>
+                                            <Text style={styles.text}>${formatNumber(item.price)}</Text>
                                         </View>
-                                    )}
-                                    keyExtractor={(item, index) => index.toString()} 
-                                />
-                            </TouchableOpacity>
-                            <Button title="O'chirish" color="red" onPress={() => handleDeleteOrder(index)} />
-                        </View>
-                    )}
-                    keyExtractor={(item, index) => index.toString()}
-                />
-            </ScrollView>
+                                        {item.customer && (
+                                            <Text style={styles.text}>
+                                                Xaridorning ismi: {item.customer}
+                                            </Text>
+                                        )}
+                                    </View>
+                                )}
+                                keyExtractor={(item, index) => index.toString()}
+                            />
+                        </TouchableOpacity>
+                        <Button
+                            title="O'chirish"
+                            color="red"
+                            buttonStyle={styles.button}
+                            onPress={() => handleDeleteOrder(item.id)}
+                            icon={
+                                <Icon name="trash" type="feather" color="white" size={16} />
+                            }
+                        />
+                    </View>
+                )}
+                keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={styles.scrollContainer}
+            />
             <OrderModal visible={modalVisible} onClose={handleCloseModal} order={selectedOrder} />
+
+            {/* Floating Action Button */}
+            <TouchableOpacity
+                style={styles.floatingButton}
+                onPress={handleAddOrder}
+            >
+                <Icon name="add" type="material" color="white" size={24} />
+            </TouchableOpacity>
         </SafeAreaView>
     );
 };
 
 const styles = StyleSheet.create({
-    text: {
-        fontSize: 18
+    container: {
+        flex: 1,
     },
-    container: { flex: 1 },
     scrollContainer: {
-        padding: 10
+        padding: 10,
     },
     orderItem: {
         padding: 15,
         marginBottom: 10,
-        marginTop: 5,
-        backgroundColor: '#fff'
-
+        backgroundColor: '#fff',
+        elevation: 3, // For Android shadow
+        shadowColor: '#000', // For iOS shadow
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        borderRadius: 8,
     },
-    orderTitle: { fontWeight: 'bold' },
+    orderHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 5,
+    },
+    orderTitle: {
+        fontWeight: 'bold',
+        marginLeft: 5,
+    },
     itemContainer: {
         marginBottom: 10,
         padding: 10,
-        borderBottomWidth: 1
-
+        borderBottomWidth: 1,
+    },
+    itemContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        maxWidth: '100%',
+    },
+    text: {
+        fontSize: 18,
     },
     orderDate: {
         fontStyle: 'italic',
         fontSize: 16,
         color: 'gray',
         marginBottom: 10,
+    },
+    button: {
+        backgroundColor: 'red',
+        borderRadius: 8,
+    },
+    floatingButton: {
+        position: 'absolute',
+        bottom: 30,
+        right: 30,
+        backgroundColor: 'orange',
+        borderRadius: 50,
+        width: 60,
+        height: 60,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 5, // For Android shadow
+        shadowColor: '#000', // For iOS shadow
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 3,
     },
 });
 
