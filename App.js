@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import OrdersScreen from './screens/OrdersScreen';
+import OrdersScreen from './screens/Orders';
 import OrderModal from './components/OrdersModal';
 import SummaryScreen from './screens/Summary';
 
@@ -12,13 +12,13 @@ function App() {
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{
-          headerShown: false, // Hide the default header
+          headerShown: false, 
         }}
       >
         <Stack.Screen 
           name="Orders" 
           component={OrdersScreen} 
-          options={{ headerShown: false }} // Hide default header if you're using a custom TopBar
+          options={{ headerShown: false }} 
          />
         <Stack.Screen 
           name="OrderModal" 
@@ -27,7 +27,7 @@ function App() {
         <Stack.Screen
           name="MonthSelection"
           component={SummaryScreen}
-          options={{ title: 'Select Month' }} // Customize as needed
+          options={{ title: 'Oyni tanlang' }} 
         />
       </Stack.Navigator>
     </NavigationContainer>

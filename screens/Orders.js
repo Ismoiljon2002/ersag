@@ -81,7 +81,7 @@ const OrdersScreen = ({ navigation }) => {
                     <View style={styles.orderItem}>
                         <TouchableOpacity onPress={() => handleEditOrder(item)}>
                             <View style={styles.orderHeader}>
-                                <Icon name="file-text" type="feather" color="#000" />
+                                <Icon name="bookmark" color="#000" />
                                 <Text style={styles.orderTitle}>{formatNumber(sortedOrders.length - index)}-buyurtma</Text>
                             </View>
                             <Text style={styles.orderDate}>
@@ -114,7 +114,7 @@ const OrdersScreen = ({ navigation }) => {
                             buttonStyle={styles.button}
                             onPress={() => handleDeleteOrder(item.id)}
                             icon={
-                                <Icon name="trash" type="feather" color="white" size={16} />
+                                <Icon name="trash" type='entypo' size={18} color="white" />
                             }
                         />
                     </View>

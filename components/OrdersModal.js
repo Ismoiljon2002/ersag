@@ -1,42 +1,50 @@
-// OrderModal.js
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, TextInput, Button, StyleSheet, Dimensions, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, TextInput, StyleSheet, Dimensions, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from 'react-native-ui-datepicker';
-import Icon from 'react-native-vector-icons/MaterialIcons'; // Importing icons
+import { Icon } from 'react-native-elements';
+import moment from 'moment';
 
-const { height: screenHeight } = Dimensions.get('window'); // Get screen height
+const { height: screenHeight } = Dimensions.get('window');
 
 const OrderModal = ({ visible, onClose, order }) => {
-    const [orderDate, setOrderDate] = useState(order ? order.orderDate : new Date().toISOString().split('T')[0]);
+    const [orderDate, setOrderDate] = useState(order ? new Date(order.orderDate) : new Date());
     const [items, setItems] = useState(order ? order.items : [{ item: '', price: '', isGift: false, customer: '' }]);
     const [discountPercent, setDiscountPercent] = useState(order ? order.discountPercent || '0' : '0');
+    const [showDatePicker, setShowDatePicker] = useState(false);
 
     useEffect(() => {
         if (order) {
-            setOrderDate(order.orderDate || new Date().toISOString().split('T')[0]);
+            setOrderDate(new Date(order.orderDate) || new Date());
             setItems(order.items || [{ item: '', price: '', isGift: false, customer: '' }]);
             setDiscountPercent(order.discountPercent || '0');
         } else {
-            setOrderDate(new Date().toISOString().split('T')[0]);
+            setOrderDate(new Date());
             setItems([{ item: '', price: '', isGift: false, customer: '' }]);
             setDiscountPercent('0');
         }
     }, [order]);
 
     const addItem = () => {
-        const isValid = items.every(item => item.item && item.price);
+        const isValid = items.every(item => item.item && item.price && item.customer);
         if (isValid) {
             setItems([...items, { item: '', price: '', isGift: false, customer: '' }]);
         } else {
-            Alert.alert('Incomplete Item', "Please complete the previous item.");
+            Alert.alert('Incomplete Item', "Iltimos, avvalgi maxsulotni to'liq kiriting");
         }
     };
 
     const handleSave = () => {
+        // Validate that all items have all required fields
+        const isValid = items.every(item => item.item && item.price && item.customer);
+        if (!isValid) {
+            Alert.alert('Incomplete Order', "Iltimos, barcha maxsulotlarni to'liq kiriting");
+            return;
+        }
+
         const generateUniqueId = () => '_' + Math.random().toString(36).substr(2, 9);
-        const newOrder = { ...order, id: order?.id || generateUniqueId(), orderDate, discountPercent, items };
+        const newOrder = { ...order, id: order?.id || generateUniqueId(), orderDate: moment(orderDate).format('YYYY-MM-DD'), discountPercent, items };
         onClose(newOrder);
     };
 
@@ -57,16 +65,34 @@ const OrderModal = ({ visible, onClose, order }) => {
             <View style={styles.overlay}>
                 <SafeAreaView style={styles.modalContainer}>
                     <ScrollView contentContainerStyle={styles.modalContent}>
-                        <Text style={styles.headerText}>Select Order Date:</Text>
-                        <DateTimePicker
-                            mode="single"
-                            date={orderDate}
-                            onChange={(params) => setOrderDate(params.date)}
+                        <Text style={styles.headerText}>Sanani tanlang:</Text>
+                        <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateButton}>
+                            <Text style={styles.dateText}>{moment(orderDate).format('MMMM D, YYYY')}</Text>
+                        </TouchableOpacity>
+                        {showDatePicker && (
+                            <DateTimePicker
+                                value={orderDate}
+                                mode="date"
+                                display="default"
+                                onChange={(event, selectedDate) => {
+                                    setShowDatePicker(false);
+                                    if (selectedDate) {
+                                        setOrderDate(selectedDate);
+                                    }
+                                }}
+                            />
+                        )}
+                        <TextInput
+                            placeholder="Chegirma (0-100) %"
+                            keyboardType="numeric"
+                            value={discountPercent}
+                            onChangeText={(text) => setDiscountPercent(text)}
+                            style={styles.input}
                         />
                         {items.map((item, index) => (
                             <View key={index} style={styles.inputWrapper}>
                                 <TextInput
-                                    placeholder="Product"
+                                    placeholder="Maxsulot nomi"
                                     value={item.item}
                                     onChangeText={(text) => {
                                         const newItems = [...items];
@@ -76,7 +102,7 @@ const OrderModal = ({ visible, onClose, order }) => {
                                     style={styles.input}
                                 />
                                 <TextInput
-                                    placeholder="Price"
+                                    placeholder="Narxi"
                                     keyboardType="numeric"
                                     value={item.price}
                                     onChangeText={(text) => {
@@ -94,11 +120,11 @@ const OrderModal = ({ visible, onClose, order }) => {
                                         setItems(newItems);
                                     }}
                                 >
-                                    <Picker.Item label="Gift" value={true} />
-                                    <Picker.Item label="Purchased" value={false} />
+                                    <Picker.Item label="Sovg'a" value={true} />
+                                    <Picker.Item label="Sotib olindi" value={false} />
                                 </Picker>
                                 <TextInput
-                                    placeholder="Customer Name"
+                                    placeholder="Xaridor ismi"
                                     value={item.customer}
                                     onChangeText={(text) => {
                                         const newItems = [...items];
@@ -107,32 +133,25 @@ const OrderModal = ({ visible, onClose, order }) => {
                                     }}
                                     style={styles.input}
                                 />
-                                <TouchableOpacity onPress={() => deleteItem(index)} style={styles.deleteButton}>
-                                    <Icon name="delete" size={24} color="white" />
-                                    <Text style={styles.buttonText}>Delete</Text>
-                                </TouchableOpacity>
-                                {index === items.length - 1 && (
-                                    <TouchableOpacity onPress={addItem} style={styles.addButton}>
-                                        <Icon name="add-circle" size={24} color="white" />
-                                        <Text style={styles.buttonText}>Add Product</Text>
+                                <View style={styles.buttonContainer}>
+                                    <TouchableOpacity onPress={() => deleteItem(index)} style={styles.deleteButton}>
+                                        <Icon name="trash" type='entypo' size={24} color="white" />
+                                        <Text style={styles.buttonText}>O'chirish</Text>
                                     </TouchableOpacity>
-                                )}
+                                    <TouchableOpacity onPress={addItem} style={styles.addButton}>
+                                        <Icon name="cart-plus" type='material-community' size={24} color="white" />
+                                        <Text style={styles.buttonText}>Maxsulot qo'shish</Text>
+                                    </TouchableOpacity>
+                                </View>
                             </View>
                         ))}
-                        <TextInput
-                            placeholder="Discount Percent (0-100)"
-                            keyboardType="numeric"
-                            value={discountPercent}
-                            onChangeText={(text) => setDiscountPercent(text)}
-                            style={styles.input}
-                        />
                         <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
                             <Icon name="save" size={24} color="white" />
-                            <Text style={styles.buttonText}>Save Order</Text>
+                            <Text style={styles.buttonText}>Saqlash</Text>
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => onClose(null)} style={styles.closeButton}>
                             <Icon name="exit-to-app" size={24} color="white" />
-                            <Text style={styles.buttonText}>Close</Text>
+                            <Text style={styles.buttonText}>Yopish</Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </SafeAreaView>
@@ -144,12 +163,11 @@ const OrderModal = ({ visible, onClose, order }) => {
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        justifyContent: 'flex-end',
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
     },
     modalContainer: {
         flex: 1,
-        justifyContent: 'center',
+        justifyContent: 'flex-end',
     },
     modalContent: {
         backgroundColor: 'white',
@@ -164,8 +182,16 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         textAlign: 'center',
     },
+    dateButton: {
+        borderBottomWidth: 1,
+        padding: 10,
+        marginBottom: 10,
+    },
+    dateText: {
+        fontSize: 18,
+    },
     inputWrapper: {
-        gap: 10,
+        gap: 7,
     },
     input: {
         borderBottomWidth: 1,
@@ -173,13 +199,17 @@ const styles = StyleSheet.create({
         fontSize: 18,
         padding: 7,
     },
+    buttonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
     deleteButton: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: 'red',
         padding: 10,
+        paddingRight: 25,
         borderRadius: 5,
-        marginVertical: 5,
     },
     addButton: {
         flexDirection: 'row',
@@ -187,7 +217,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'orange',
         padding: 10,
         borderRadius: 5,
-        marginVertical: 5,
     },
     saveButton: {
         flexDirection: 'row',
@@ -195,7 +224,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'green',
         padding: 10,
         borderRadius: 5,
-        marginVertical: 10,
     },
     closeButton: {
         flexDirection: 'row',
@@ -203,7 +231,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'gray',
         padding: 10,
         borderRadius: 5,
-        marginVertical: 5,
     },
     buttonText: {
         color: 'white',
